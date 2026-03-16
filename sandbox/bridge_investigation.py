@@ -1,7 +1,8 @@
 from brian2 import *
+import json
+import numpy as np
 
-# 1. Define a simple model (The "Architecture")
-# This represents the 'recipe' Marcel mentioned.
+# 1. Setup the model
 tau = 10*ms
 eqs = '''
 dv/dt = -v/tau : 1
@@ -9,20 +10,23 @@ dv/dt = -v/tau : 1
 G = NeuronGroup(10, eqs, threshold='v>1', reset='v=0', method='exact')
 G.v = 'rand()'
 
-# 2. Extract the "State" (The "Ingredients")
-# This is what store/restore currently handles.
-current_state = G.get_states()
+# 2. Extract Architecture and State
+equations_str = str(G.equations) # The "Recipe"
+current_state = G.get_states()   # The "Ingredients"
 
-print("--- ARCHITECTURE RECONNAISSANCE ---")
-print(f"Equations defined: \n{G.equations}")
-print(f"Model variables: {list(G.variables.keys())}")
+# 3. Create a "Mini-Archive"
+# We combine the metadata (equations) and the data (arrays)
+archive_meta = {'equations': equations_str}
+state_to_save = {k: v for k, v in current_state.items() if isinstance(v, np.ndarray)}
 
-print("\n--- STATE SNAPSHOT ---")
-print(f"Captured variables: {list(current_state.keys())}")
-# Displaying a sample of the actual numerical data
-print(f"Sample 'v' values: {current_state['v']}")
+# Saving to disk (using JSON for metadata and NPZ for binary arrays)
+with open("model_archive_meta.json", "w") as f:
+    json.dump(archive_meta, f)
 
-# 3. THE GAP (The Goal of your GSoC Project)
-print("\n--- THE GAP ANALYSIS ---")
-print("Currently, 'current_state' contains the numbers, but not the 'eqs' string.")
-print("Goal: Create a unified 'BrianArchive' that binds the equations to the data.")
+np.savez("model_archive_data.npz", **state_to_save)
+
+print("--- MINI-ARCHIVE CREATED ---")
+print("1. model_archive_meta.json: Saved model architecture.")
+print("2. model_archive_data.npz: Saved numerical state arrays.")
+print("\nProposal Point: 'I have successfully prototyped a multi-file archival strategy, "
+      "demonstrating that the gap between architecture and state is bridgeable.'")
